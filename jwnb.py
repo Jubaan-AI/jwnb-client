@@ -163,7 +163,45 @@ class jwnb:
 
 #region Metrics
 
-    class Image:
+    def __to_base64__(self, data:Any) -> str:
+        """Convert image data to base64 string for upload."""
+        buf = BytesIO()
+        
+        # Handle matplotlib figure
+        if hasattr(data, 'savefig'):
+            data.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+            buf.seek(0)
+        
+        # Handle PIL Image
+        elif PILImage is not None and isinstance(data, PILImage.Image):
+            data.save(buf, format='PNG')
+            buf.seek(0)
+        
+        # Handle numpy array
+        elif np is not None and hasattr(data, '__array__'):
+            arr = np.asarray(data)
+            if arr.ndim == 2:  # Grayscale
+                arr = np.stack([arr] * 3, axis=-1)
+            if arr.max() <= 1.0:
+                arr = (arr * 255).astype(np.uint8)
+            if PILImage is not None:
+                img = PILImage.fromarray(arr.astype(np.uint8))
+                img.save(buf, format='PNG')
+                buf.seek(0)
+            else:
+                raise ImportError("PIL is required for numpy array images")
+        
+        # Handle file path
+        elif isinstance(data, (str, Path)):
+            with open(data, 'rb') as f:
+                return base64.b64encode(f.read()).decode()
+        else:
+            raise ValueError(f"Unsupported image type: {type(data)}")
+
+        return base64.b64encode(buf.read()).decode()
+
+
+    def Image(self, data:Any):
         """
         Log images from matplotlib figures, PIL images, or numpy arrays.
         Similar to wandb.Image()
@@ -178,46 +216,16 @@ class jwnb:
             ax.plot(losses)
             jwnb.log(value_type="image", value=jwnb.Image(fig), epoch=epoch)
         """
-        def __init__(self, data: Any, scale=1.0):
-            self.data = self.__to_base64__(data)
-            return 
+        data = self.__to_base64__(data)
 
-        def __to_base64__(self, data:Any) -> str:
-            """Convert image data to base64 string for upload."""
-            buf = BytesIO()
-            
-            # Handle matplotlib figure
-            if hasattr(data, 'savefig'):
-                data.savefig(buf, format='png', bbox_inches='tight', dpi=150)
-                buf.seek(0)
-            
-            # Handle PIL Image
-            elif PILImage is not None and isinstance(data, PILImage.Image):
-                data.save(buf, format='PNG')
-                buf.seek(0)
-            
-            # Handle numpy array
-            elif np is not None and hasattr(data, '__array__'):
-                arr = np.asarray(data)
-                if arr.ndim == 2:  # Grayscale
-                    arr = np.stack([arr] * 3, axis=-1)
-                if arr.max() <= 1.0:
-                    arr = (arr * 255).astype(np.uint8)
-                if PILImage is not None:
-                    img = PILImage.fromarray(arr.astype(np.uint8))
-                    img.save(buf, format='PNG')
-                    buf.seek(0)
-                else:
-                    raise ImportError("PIL is required for numpy array images")
-            
-            # Handle file path
-            elif isinstance(data, (str, Path)):
-                with open(data, 'rb') as f:
-                    return base64.b64encode(f.read()).decode()
-            else:
-                raise ValueError(f"Unsupported image type: {type(data)}")
+        # upload to the server
+        jdata = {
+            "filename": f"{self.run['run_name']}_image_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.png",
+            "file_base64": data
+        }
 
-            return base64.b64encode(buf.read()).decode()
+        file_entry = make_function_request('uploadFile', data=jdata)
+        return file_entry['file_url']
 
     # scalar, histogram, image, model, list, string, boolean
     def log(self, value_type, value:Any, caption:str="", step: int = None):
@@ -289,7 +297,7 @@ if __name__ == "__main__":
             ax[1].set_xlabel('Epoch')
             ax[1].set_ylabel('Accuracy')    
             ax[1].legend()
-            jwnb_instance.log(value_type="image", value=jwnb.Image(fig).data, caption="Loss and Accuracy Plots", step=epc)
+            jwnb_instance.log(value_type="image", value=jwnb_instance.Image(fig), caption="Loss and Accuracy Plots", step=epc)
             plt.close(fig)
 
             # changes in the model during epoch run
