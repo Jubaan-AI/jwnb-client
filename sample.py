@@ -27,9 +27,13 @@ if __name__ == "__main__":
             losscount.append(loss)  
             acccount.append(acc)
 
+            # sample for scalar values
             jwnb_instance.log(value_type="scalar", value=loss, caption="loss", step=epc)   
             jwnb_instance.log(value_type="scalar", value=acc, caption="accuracy", step=epc)  
             jwnb_instance.log(value_type="scalar", value=np.random.rand() * 0.1 + (epc / numepochs) * 0.6, caption="stupidity", step=epc)   
+
+            # sample for boolean values
+            jwnb_instance.log(value_type="boolean", value=bool(acc > 0.5), caption="fuzzy boolean", step=epc)  
 
             # sample for list of values            
             list_data = [np.random.rand() for _ in range(10)]
