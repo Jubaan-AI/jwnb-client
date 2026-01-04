@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-JWNB_API_KEY = "fd5723109ea1435d97553e56a7c953f9"
+JWNB_API_KEY = "<your api key provided by Jubaan"
 
 if __name__ == "__main__":
     
