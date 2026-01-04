@@ -9,7 +9,7 @@ It allows you to:
 - Upload artifacts (plots, images)
 - Maintain a clean experiment timeline per run
 
-Backend: `jwnb.jubaan.com`  
+Backend: [https://jwnb.jubaan.com](https://jwnb.jubaan.com) 
 Target audience: Jubaan ML & data teams
 
 ---
