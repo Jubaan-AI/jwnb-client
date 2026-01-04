@@ -42,6 +42,7 @@ From the **root directory of your project**, run:
 
 ```bash
 git submodule add https://github.com/Jubban-AI/jwnb-client.git external/jwnb
+ ```
 
 > **Note:** `external/jwnb` is a subdirectory under your project’s root where the JWNB repository will be placed.
 
