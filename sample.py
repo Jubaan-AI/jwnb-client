@@ -3,11 +3,14 @@ from jwnb import jwnb
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+JWNB_API_KEY = "fd5723109ea1435d97553e56a7c953f9"
+
 if __name__ == "__main__":
     
     config = {"learning_rate": 0.001, "batch_size": 32, "optimizer": "adam"}
     numepochs = 5
-    jwnb_instance = jwnb("Jubaan ML Gixam", "This is a sample project description.", "jwnb-run", tags=["jubaan", "sample", "test"], total_epochs=numepochs, config=config, notes="This is a sample run for testing purposes.")
+    jwnb_instance = jwnb(JWNB_API_KEY, "Jubaan ML Gixam", "This is a sample project description.", "jwnb-run", tags=["jubaan", "sample", "test"], total_epochs=numepochs, config=config, notes="This is a sample run for testing purposes.")
     jwnb_instance.update_project_notification(["david@jubaan.com"])
 
 

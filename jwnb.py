@@ -1,23 +1,39 @@
 """
 jwnb module and package to simulate wnb for the Jubaan back office: jwnb.jubaan.com
-"""
 
-# Python Example: Reading Entities
-# Filterable fields: name, description, run_count, last_activity, notification_targets
+git: https://github.com/Jubaan-AI/jwnb-client
+
+Simple quic and dirty usage:
+
+from jwnb import jwnb
+
+    jwnb_instance = jwnb("Jubaan ML Gixam", "This is a sample project description.", "jwnb-run", tags=["jubaan", "sample", "test"], total_epochs=numepochs, notes="This is a sample run for testing purposes.")
+ 
+    # run you epochs
+
+        # log
+        jwnb_instance.log(value_type="scalar", value=loss, caption="loss", step=epc)  
+
+    # finish
+    jwnb_instance.finish(status="finished", summary={"final_loss": loss, "final_acc": acc})
+"""
 from io import BytesIO
 from pathlib import Path
 import requests
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 from PIL import Image as PILImage
 import numpy as np
 import base64
-import matplotlib.pyplot as plt
 
-def make_api_request(entity, method='GET', data=None):
+
+#region back office API calls
+
+# read entity's data
+def make_api_request(api_key, entity, method='GET', data=None):
     url = f'https://app.base44.com/api/apps/6952664e26e9efd0556a45f7/entities/{entity}'
     headers = {
-        'api_key': 'fd5723109ea1435d97553e56a7c953f9',
+        'api_key': f'{api_key}',
         'Content-Type': 'application/json'
     }
     if method.upper() == 'GET':
@@ -27,26 +43,12 @@ def make_api_request(entity, method='GET', data=None):
     response.raise_for_status()
     return response.json()
 
-
-def make_function_request(function_name, data=None):
-    url = f'https://jwnb.base44.app/api/apps/6952664e26e9efd0556a45f7/functions/{function_name}'
-    headers = {
-        'api_key': 'fd5723109ea1435d97553e56a7c953f9',
-        'Content-Type': 'application/json'
-    }
-    response = requests.request('POST', url, headers=headers, json=data)
-    response.raise_for_status()
-    return response.json()
-
-
-
-# Python Example: Updating an Entity
-# Filterable fields: name, description, run_count, last_activity, notification_targets
-def update_entity(entity, entity_id, update_data):
+# update entoty's data
+def update_entity(api_key, entity, entity_id, update_data):
     response = requests.put(
         f'https://app.base44.com/api/apps/6952664e26e9efd0556a45f7/entities/{entity}/{entity_id}',
         headers={
-            'api_key': 'fd5723109ea1435d97553e56a7c953f9',
+            'api_key': f'{api_key}',
             'Content-Type': 'application/json'
         },
         json=update_data
@@ -54,12 +56,26 @@ def update_entity(entity, entity_id, update_data):
     response.raise_for_status()
     return response.json()
 
+# make a function call to the backoffice
+def make_function_request(api_key, function_name, data=None):
+    url = f'https://jwnb.base44.app/api/apps/6952664e26e9efd0556a45f7/functions/{function_name}'
+    headers = {
+        'api_key': f'{api_key}',
+        'Content-Type': 'application/json'
+    }
+    response = requests.request('POST', url, headers=headers, json=data)
+    response.raise_for_status()
+    return response.json()
+
+#endregion
 
 class jwnb:
 
-    def __init__(self, project_name, description="", run_name="Run", tags=[], config={}, notes="", total_epochs=10):
+    def __init__(self, api_key, project_name, description="", run_name="Run", tags=[], config={}, notes="", total_epochs=10):
+        
         self.project_name = project_name
         self.description = description
+        self.api_key = api_key
         self.project = self.__get_or_create_project__()    
 
         # init the new run
@@ -70,17 +86,17 @@ class jwnb:
 
     def __get_or_create_project__(self):
         pdata = {"name": self.project_name}
-        projects = make_api_request(f'Project', data=pdata)
+        projects = make_api_request(self.api_key, f'Project', data=pdata)
         if projects:
             return projects[0]
         else:
             pdata = {"name": self.project_name, "description": self.description}
-            project = make_api_request(f'Project', method="POST", data=pdata)
+            project = make_api_request(self.api_key,f'Project', method="POST", data=pdata)
             return project
 
     def update_project_notification(self, notification_targets):
         update_data = {"notification_targets": notification_targets}
-        updated_project = update_entity('Project', self.project['id'], update_data)
+        updated_project = update_entity(self.api_key, 'Project', self.project['id'], update_data)
         self.project = updated_project
         return updated_project
 #endregion
@@ -135,12 +151,12 @@ class jwnb:
             "system_info": system_info,
             "summary": summary
         }
-        run = make_api_request('Run', method="POST", data=run_data)
+        run = make_api_request(self.api_key, 'Run', method="POST", data=run_data)
         return run
 
     def update_current_epoch(self, current_epoch):
         update_data = {"current_epoch": current_epoch}
-        updated_run = update_entity('Run', self.run['id'], update_data)
+        updated_run = update_entity(self.api_key, 'Run', self.run['id'], update_data)
         self.run = updated_run
         return updated_run
 
@@ -152,11 +168,11 @@ class jwnb:
             "summary": summary,
             "notes": self.run['notes'] + (f"<br><hr><br><b>Error</b><font color=\"red\">: {error}</font>" if error else "")
         }
-        updated_run = update_entity('Run', self.run['id'], update_data)
+        updated_run = update_entity(self.api_key, 'Run', self.run['id'], update_data)
         self.run = updated_run
 
         # inform notifications
-        make_function_request('notifyRunStatus', data={"run_name": self.run['run_name']})
+        make_function_request(self.api_key, 'notifyRunStatus', data={"run_name": self.run['run_name']})
         return updated_run
 
 #endregion
@@ -224,7 +240,7 @@ class jwnb:
             "file_base64": data
         }
 
-        file_entry = make_function_request('uploadFile', data=jdata)
+        file_entry = make_function_request(self.api_key,'uploadFile', data=jdata)
         return file_entry['file_url']
 
     # scalar, histogram, image, model, list, string, boolean
@@ -246,7 +262,7 @@ class jwnb:
         else:
             log_data["epoch"] = self.run['current_epoch']
 
-        log_entry = make_api_request('Epoch', method="POST", data=log_data)
+        log_entry = make_api_request(self.api_key, 'Epoch', method="POST", data=log_data)
         return log_entry
 
 #endregion
